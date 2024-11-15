@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Recognition</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #camera-container {
+            margin-bottom: 20px;
+        }
+        #result {
+            font-size: 1.5em;
+            margin-top: 20px;
+        }
+        #gesture-image {
+            margin-top: 20px;
+            max-width: 100%;
+            height: auto;
+        }
+        video {
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid #ccc;
+        }
+        #capture-button {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Capture Image for Gesture Recognition</h1>
+
+    <!-- Camera preview container -->
+    <div id="camera-container">
+        <video id="video" autoplay></video>
+        <button id="capture-button" onclick="captureImage()">Capture Image</button>
+    </div>
+
+    <!-- Section to display the result -->
+    <div id="result">
+        <p>Predicted Gesture: <span id="gesture"></span></p>
+    </div>
+
+    <!-- Display the captured image -->
+    <div>
+        <img id="gesture-image" style="display:none;">
+    </div>
+
+    <script>
+        let videoElement = document.getElementById('video');
+        let canvas = document.createElement('canvas');
+    
+        // Access user's camera
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                    videoElement.srcObject = stream;
+                })
+                .catch(function (error) {
+                    console.error("Error accessing the camera: ", error);
+                    alert("Cannot access the camera. Please make sure it's enabled.");
+                });
+        }
+    
+        // Capture image from the video stream
+        function captureImage() {
+            // Set canvas size to match video
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+    
+            // Draw the current frame from video to canvas
+            canvas.getContext('2d').drawImage(videoElement, 0, 0);
+    
+            // Convert the canvas image to a Blob (for sending to backend)
+            canvas.toBlob(function(blob) {
+                sendImageToBackend(blob);
+            }, 'image/jpeg');
+        }
+    
+        // Function to send captured image to Flask backend
+        function sendImageToBackend(imageBlob) {
+            const formData = new FormData();
+            formData.append('image', imageBlob, 'gesture.jpg');  // Append the Blob
+    
+            fetch('http://localhost:5000/recognize_gesture', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Handle the response from the Flask API
+                if (data.predicted_gesture) {
+                    document.getElementById('gesture').textContent = data.predicted_gesture;
+                } else if (data.message) {
+                    document.getElementById('gesture').textContent = data.message;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('gesture').textContent = "Error recognizing gesture.";
+            });
+        }
+    
+        // Start the camera when the page loads
+        window.onload = function () {
+            startCamera();
+        };
+    </script>
+    
+
+</body>
+</html>
